@@ -1,10 +1,9 @@
-# kafkaconnect
-Установка компонентов тестовой среды (zookeeper, kafka, schema-registry, kafka-ui,debezium)
-
+# Kafka Connect
+# Установка компонентов тестовой среды (zookeeper, kafka, schema-registry, kafka-ui, debezium)
 
 Создать docker-compose.yml файл
 
-
+```
 version: '2'
 services:
   zookeeper:
@@ -73,61 +72,82 @@ services:
       - 8082:8080
     environment:
       DYNAMIC_CONFIG_ENABLED: true
-
-
+```
 
 2. Выполнить команду в консоли: docker compose up
 
 3. В результате должны запуститься следующие сервисы:
+![image](https://github.com/user-attachments/assets/59ad8158-3730-42b4-88c3-3f0d9fd06d2c)
 
-Настройка PostgreSQL
-Установить флаг логической репликации:
+# Настройка PostgreSQL
+4. Установить флаг логической репликации:
+``` sql
 ALTER SYSTEM SET wal_level = logical;
-Проверить флаг логической репликации:
-
+```
+5. Проверить флаг логической репликации:
+``` sql
 SELECT setting, enumvals from pg_settings WHERE name = 'wal_level';
-Перезапустить сервер:
+```
 
+6. Перезапустить сервер:
+``` sql
 sudo -u postgres /Library/PostgreSQL/17/bin/pg_ctl -D /Library/PostgreSQL/17/data restart
-Создать слот репликации в базе данных idp:
+```
 
+7. Создать слот репликации в базе данных idp:
+``` sql
 SELECT pg_create_logical_replication_slot('postgres_debezium', 'pgoutput');
+```
 
-
-Создать слот репликации в базе данных idp2
-
+8. Создать слот репликации в базе данных idp2
+``` sql
 SELECT pg_create_logical_replication_slot('postgres_debezium2', 'pgoutput');
-Проверить наличие слотов логической репликации:
+```
 
+9. Проверить наличие слотов логической репликации:
+``` sql
 SELECT * FROM pg_replication_slots;
-
-
-Для реплицируемых таблиц устанавливаем форму информации записываемую в WAL:
+```
+10. Для реплицируемых таблиц устанавливаем форму информации записываемую в WAL:
+``` sql
 ALTER TABLE users REPLICA IDENTITY FULL; // В WAL будут записываться строки со старыми значениями колонок
+
 Возможные варианты (https://postgrespro.ru/docs/postgresql/9.4/sql-altertable):
+
 ALTER TABLE ... REPLICA IDENTITY DEFAULT;
 ALTER TABLE ... REPLICA IDENTITY USING INDEX;
 ALTER TABLE ... REPLICA IDENTITY NOTHING;
+```
 
-
-Создать публикацию для реплицируемых таблиц:
-
+11. Создать публикацию для реплицируемых таблиц:
+``` sql
 CREATE PUBLICATION dbz_publication FOR TABLE users, ..., ...;
-Изменить параметры публикации можно командой:
+```
 
+12. Изменить параметры публикации можно командой:
+``` sql
 ALTER PUBLICATION dbz_publication SET (publish = 'insert, update, delete');
-Удалить публикацию можно командой:
+```
 
+13. Удалить публикацию можно командой:
+``` sql
 DROP PUBLICATION dbz_publication;
-Просмотреть публикации и таблицы можно командой:
+```
 
+14. Просмотреть публикации и таблицы можно командой:
+``` sql
 SELECT * FROM pg_publication;
 SELECT * FROM pg_publication_tables
-Подключение коннекторов (через Postman)
-Подключить SOURCE коннектор можно POST запросом: http://localhost:8083/connectors
-Выполняет чтение данных из WAL таблицы public.users базы данных idp и записывает в топик KAFKA idp.public.users 
-Body:
+```
 
+# Подключение коннекторов (через Postman)
+
+15. Подключить SOURCE коннектор можно POST запросом:
+```
+http://localhost:8083/connectors
+```
+Выполняет чтение данных из WAL таблицы public.users базы данных idp и записывает в топик KAFKA idp.public.users 
+```
 {
     "name": "source-idp-postgresql-connector",
     "config":
@@ -152,10 +172,15 @@ Body:
         "transforms.unwrap.type": "io.debezium.transforms.ExtractNewRecordState"
     }
 }
-Подключить SOURCE коннектор можно POST запросом: http://localhost:8083/connectors
-(Выполняет чтение данных из WAL таблицы public.users базы данных idp2 и записывает в топик KAFKA idp2.public.users)
-Body:
+```
 
+16. Подключить SOURCE коннектор можно POST запросом: 
+```
+http://localhost:8083/connectors
+```
+
+Выполняет чтение данных из WAL таблицы public.users базы данных idp2 и записывает в топик KAFKA idp2.public.users
+```
 {
     "name": "source-idp2-postgresql-connector",
     "config":
@@ -180,10 +205,14 @@ Body:
         "transforms.unwrap.type": "io.debezium.transforms.ExtractNewRecordState"
     }
 }
-Подключить SYNC коннектор можно POST запросом: http://localhost:8083/connectors
-(Выполняет чтение данных из топика KAFKA idp.public.users и записывает в таблицу public.users базы данных idp)
-Body:
+```
 
+17. Подключить SYNC коннектор можно POST запросом:
+```
+http://localhost:8083/connectors
+```
+Выполняет чтение данных из топика KAFKA idp.public.users и записывает в таблицу public.users базы данных idp
+```
 {
     "name": "sync-idp-jdbc-connector",  
     "config": 
@@ -213,10 +242,14 @@ Body:
         "errors.log.enable": "true"
     }
 }
-Подключить SYNC коннектор можно POST запросом: http://localhost:8083/connectors
-(Выполняет чтение данных из топика KAFKA idp2.public.users и записывает в таблицу public.users базы данных idp2)
-Body:
+```
 
+18. Подключить SYNC коннектор можно POST запросом:
+```
+http://localhost:8083/connectors
+```
+Выполняет чтение данных из топика KAFKA idp2.public.users и записывает в таблицу public.users базы данных idp2
+```
 {
     "name": "sync-idp2-jdbc-connector",
     "config":
@@ -246,21 +279,35 @@ Body:
         "errors.log.enable": "true"
     }
 }
-Просмотреть список подключенных коннекторов можно GET запросом: http://localhost:8083/connectors
+```
 
+19. Просмотреть список подключенных коннекторов можно GET запросом:
+```
+http://localhost:8083/connectors
+```
 
 Результат:
+```
 [
 "source-idp-postgresql-connector",
 "sync-idp-jdbc-connector",
 "source-idp2-postgresql-connector",
 "sync-idp2-jdbc-connector"
 ]
+```
 
-Удалить коннектор можно DELETE запросом: http://localhost:8083/connectors/source-idp2-postgresql-connector
-Просмотреть статус коннектора можно GET запросом: http://localhost:8083/connectors/sync-idp2-jdbc-connector/status
+20. Удалить коннектор можно DELETE запросом:
+```
+http://localhost:8083/connectors/source-idp2-postgresql-connector
+```
+
+21. Просмотреть статус коннектора можно GET запросом: 
+```
+http://localhost:8083/connectors/sync-idp2-jdbc-connector/status
+```
+
 Результат:
-
+```
 {
     "name": "sync-idp2-jdbc-connector",
     "connector": {
@@ -276,9 +323,11 @@ Body:
     ],
     "type": "sink"
 }
-
+```
 
 Ссылки на материалы
+```
 https://habr.com/ru/companies/flant/articles/523510/
 https://habr.com/ru/companies/first/articles/668516/
 https://github.com/debezium/debezium-examples/tree/main/tutorial
+```
